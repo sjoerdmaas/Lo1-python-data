@@ -1,22 +1,15 @@
-# This is a sample Python script.
-
 import os
-import json
 import csv
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 from scipy import signal
 from scipy.optimize import curve_fit
-
-num_of_p_per_FFT_segment = 1024
 
 cur_path = os.path.dirname(__file__)
 multiple_path = os.path.relpath('data_for_PSD_plotting\\Multiple_Traces\\', cur_path)
 
 
-def multiple_traces(specified_traces=None, use_original=True, use_potentials=False, ppsegment=1024, peak_info=False,
-                    save_cor_traces=True, dump_traces=None, frequency_range_dplot=20000, frequancy_range_EvsS_area=2500):
+def multiple_traces(specified_traces=None, use_original=True, use_potentials=False, ppsegment=1024, peak_info=False, dump_traces=None, frequency_range_dplot=20000, frequancy_range_EvsS_area=2500):
     num_of_p_per_FFT_segment = ppsegment
 
     def double_exp(x, A1, tau1, A2, tau2):
@@ -116,6 +109,7 @@ def multiple_traces(specified_traces=None, use_original=True, use_potentials=Fal
         zero_traces = []
 
         if use_potentials:
+            print("applying signal.welch")
             max_Pxx = sec_Pxx = third_Pxx = 0
             max_trace = sec_trace = third_trace = 0
             for i in trace_list:
@@ -229,12 +223,11 @@ def multiple_traces(specified_traces=None, use_original=True, use_potentials=Fal
                 plt.plot(potentials_used, frequency_of_peak_noise, "c-")
                 plt.xlabel("Potential (mV)")
                 plt.ylabel("Frequency, Hz")
-                plt.title(f" Original frequency of peak versus potentials")
+                plt.title(" Original frequency of peak versus potentials")
                 peak_at_f_path = os.path.join(multiple_path, file_name.replace(".atf", " Original Peak Frequency Shift.png"))
                 plt.savefig(peak_at_f_path, dpi=800, bbox_inches="tight")
                 plt.close()
 
-                print(mean_noise_above_peak)
                 plt.plot(potentials_used, mean_noise_above_peak, "c-")
                 plt.xlabel("Potential (mV)")
                 plt.ylabel("Mean noise, pA^2/Hz")
@@ -313,7 +306,7 @@ def multiple_traces(specified_traces=None, use_original=True, use_potentials=Fal
             plt.savefig(evs_path, dpi=800, bbox_inches="tight")
             plt.clf()
 
-            # --- Collect per-trace PSD using UNCORRECTED traces for area/E vs S plots ---
+            # --- Collect per-trace PSD for area E vs S plots ---
             all_Pxx = []
             for i in trace_list:
                 f, Pxx = signal.welch(
@@ -329,7 +322,8 @@ def multiple_traces(specified_traces=None, use_original=True, use_potentials=Fal
             n_bins = len(summed_Pxx)
             baseline = np.linspace(summed_Pxx[0], summed_Pxx[-1], n_bins)
             corrected_area = summed_Pxx - baseline
-
+            
+            print("Generating corrected area of E vs S vs Frequency plot")
             plt.figure()
             plt.plot(f, corrected_area, linewidth=1)
             plt.xlabel("Frequency [Hz]")
@@ -349,7 +343,7 @@ def multiple_traces(specified_traces=None, use_original=True, use_potentials=Fal
                 baseline_k = np.exp(np.linspace(np.log(left), np.log(right), len(trace_list)))
                 area = np.trapezoid(noise_at_bin_k - baseline_k, x=trace_list)
                 area_per_bin.append(area)
-                print("generating E vs S plot ", k)
+                print(f"generating E vs S plot At frequency = {f[k]:.3f} Hz")
                 plt.figure()
                 plt.semilogy(trace_list, noise_at_bin_k, "r-", label="PSD")
                 plt.semilogy(trace_list, baseline_k, "b--", label="baseline")
@@ -358,7 +352,7 @@ def multiple_traces(specified_traces=None, use_original=True, use_potentials=Fal
                 plt.title(f"{file_name} — E vs S at {f[k]:.3f} Hz")
                 plt.figtext(0.5, 0.7, f"At frequency = {f[k]:.3f} Hz")
                 plt.legend()
-                evs_bin_path = os.path.join(multiple_path, file_name.replace(".atf", f" Corrected E vs S bin {k} ({f[k]:.1f} Hz).png"))
+                evs_bin_path = os.path.join(multiple_path, file_name.replace(".atf", f" Corrected E vs S ({f[k]:.1f} Hz).png"))
                 plt.savefig(evs_bin_path, dpi=300, bbox_inches="tight")
                 plt.close()
 
@@ -367,11 +361,12 @@ def multiple_traces(specified_traces=None, use_original=True, use_potentials=Fal
             plt.xlabel("Frequency [Hz]")
             plt.ylabel("Area above baseline [pA²/Hz · traces]")
             plt.title(f"{file_name} — Area above baseline vs Frequency")
-            area_path = os.path.join(multiple_path, file_name.replace(".atf", " Corrected Area vs Frequency.png"))
+            area_path = os.path.join(multiple_path, file_name.replace(".atf", "Area vs Frequency.png"))
             plt.savefig(area_path, dpi=800, bbox_inches="tight")
             plt.close()
 
             # --- 3D surface plot: frequency vs trace number vs log noise ---
+            print("generating 3d noise plot")
             freq_vals = f[1: dplot_range+1]
             trace_vals = np.array(trace_list)
             Z = np.array([[all_Pxx[t, k] for t in range(len(trace_list))] for k in range(1, dplot_range+1)])
@@ -410,12 +405,11 @@ def multiple_traces(specified_traces=None, use_original=True, use_potentials=Fal
                 plt.plot(potentials_used, frequency_of_peak_noise, "c-")
                 plt.xlabel("Potential (mV)")
                 plt.ylabel("Frequency, Hz")
-                plt.title(f" Corrected frequency of peak versus potentials")
+                plt.title(" Corrected frequency of peak versus potentials")
                 peak_at_f_path = os.path.join(multiple_path, file_name.replace(".atf", " Corrected Peak Frequency Shift.png"))
                 plt.savefig(peak_at_f_path, dpi=800, bbox_inches="tight")
                 plt.close()
 
-                print('mean noise above peak: ', mean_noise_above_peak)
                 print('potentials used = ', potentials_used)
                 plt.plot(potentials_used, mean_noise_above_peak, "c-")
                 plt.xlabel("Potential (mV)")
@@ -435,4 +429,4 @@ def multiple_traces(specified_traces=None, use_original=True, use_potentials=Fal
 
 
 multiple_traces(specified_traces=None, use_original=True, use_potentials=True, ppsegment=1024*4, peak_info=True,
-                save_cor_traces=False, dump_traces=None,frequency_range_dplot=2500, frequancy_range_EvsS_area=2500)
+                 dump_traces=None,frequency_range_dplot=2500, frequancy_range_EvsS_area=1000)
